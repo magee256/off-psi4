@@ -1,0 +1,13 @@
+ 
+ The Psi4 Python Pipeline
+
+ 01_executor.py - don't do this on head node if lots of confs (tens of thousands)
+  1. smi2confs: generate unlimited conformers using oechem.oeomega for an input file with smiles strings.
+  2. filterConfs: filter these conformers by RMSD. confs diff in energy skip RMSD comparison and are automatically "unique".
+  3. confs2psi: generate Psi4 input files for an SDF file containing all conformers of all molecules.
+
+ 02_executor.py - for after QM
+  4. getPsiResults: read Psi4 results into original SDF file for confs2psi and write as new SDF file.
+  5. filterConfs: (see above)
+  6. matchMinima: matches conformers between diff methods, if applicable
+ 
