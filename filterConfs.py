@@ -6,7 +6,7 @@
 ## in order to roughly filter out duplicate minima and keep unique ones.
 ## Filtered conformers for all molecules are written out in SDF file.
 
-## Import and call filterConfs.filterConfs(arg1, arg2, arg3)
+## Import and call filterConfs.filterConfs(wdir, rmsdfile, tag, suffix)
 
 import re
 import os, sys, glob
@@ -84,7 +84,7 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
                 absERel = abs(refE-testE)
             # if energies are much diff., confs are diff, skip.
             if absERel > ThresholdE:
-                #print "Skip from energy difference ",absERel
+                print "Skip from energy difference ",absERel
                 continue
             # for the confs with similar E, see if they are diff with RMSD
             rmsd = oechem.OERMSD(confRef,confTest,automorph,heavyOnly,overlay)
@@ -106,10 +106,7 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
 
 ### ------------------- Script -------------------
 
-def filterConfs(arg1, arg2, arg3):
-    wdir = arg1
-    rmsdfile = arg2
-    tag = arg3
+def filterConfs(wdir, rmsdfile, tag, suffix):
 
     os.chdir(wdir)
     numConfsF = open(os.path.join(wdir,"numFiltConfs.txt"), 'a')
@@ -123,7 +120,7 @@ def filterConfs(arg1, arg2, arg3):
     rmsd_molecules = rmsd_ifs.GetOEMols()
     
     # Open outstream file.
-    rmsdout = arg2.split('.')[0] + "-minima.sdf"
+    rmsdout = ( "%s-%s.sdf" % (rmsdfile.replace('-', '.').split('.')[0], str(suffix)) )
     rmsd_ofs = oechem.oemolostream()
     if os.path.exists(rmsdout):
         print("%s output file already exists. Skip filtering.\n" % rmsdout)

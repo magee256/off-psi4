@@ -4,7 +4,7 @@
 ## Specifying SPE=True will write inputs for single point energy calcns,
 ## else the default input file type is for geometry optimization.
 
-## Import and call confs2psi.confs2psi(arg1, arg2, arg3, arg4, arg5)
+## Import and call confs2psi.confs2psi(wdir, insdf, method, basis)
 
 
 import os, sys
@@ -74,25 +74,19 @@ def MakePSI4Input(mol, label, method, basisset, SPE=False, mem=None):
 
 ### ------------------- Script -------------------
 
-def confs2psi(arg1, arg2, arg3, arg4, arg5=False, arg6=None):
+def confs2psi(wdir, insdf, method, basis, spe=False, memory=None):
     """
     Parameters
     ----------
-    arg1: string - working directory containing .sdf file
-    arg2: string - full name of the SDF file. E.g. "name.sdf"
-    arg3: string - method. E.g. "mp2"
-    arg4: string - basis set. E.g. "def2-sv(p)"
-    arg5: boolean. True for single point energy calcns, False for geom opt.
-          default option is False.
-    arg6: string - memory specification. Psi4 default is 256 Mb. E.g. "1.5 Gb"
+    wdir:   string - working directory containing .sdf file
+    insdf:  string - full name of the SDF file. E.g. "name.sdf"
+    method: string - method. E.g. "mp2"
+    basis:  string - basis set. E.g. "def2-sv(p)"
+    spe:    boolean. True for single point energy calcns, False for geom opt.
+            default option is False.
+    memory: string - memory specification. Psi4 default is 256 Mb. E.g. "1.5 Gb"
 
     """
-    wdir = arg1
-    insdf = arg2 
-    method = arg3
-    basis = arg4
-    spe = arg5
-    memory = arg6
     os.chdir(wdir)
     
     ### Read in .sdf file and distinguish each molecule's conformers
@@ -104,8 +98,8 @@ def confs2psi(arg1, arg2, arg3, arg4, arg5=False, arg6=None):
     
     ### For each molecule: for each conf, generate input
     for mol in ifs.GetOEMols():
+        print(mol.GetTitle(), mol.NumConfs())
         for i, conf in enumerate( mol.GetConfs()):
-            print mol.GetTitle(), i+1
             # change into subdirectory ./mol/conf/
             subdir = os.path.join(wdir,"%s/%s" % (mol.GetTitle(), i+1))
             if not os.path.isdir(subdir):
@@ -119,24 +113,30 @@ def confs2psi(arg1, arg2, arg3, arg4, arg5=False, arg6=None):
             ofile.close()
     ifs.close()
 
-def prep(olddir, newdir, sdffile, rename=None):
+def prep(source, sink):
+
     """
-    olddir: string, absolute path of old directory. should end with /
+               untested 1-17-17
+    Copies source file to be sink file. Check for already existing sink file.
+    Makes directory(ies) for sink file if necessary.
+
+    Parameters
+    ---------- 
+    source: string, filename with absolute path
+    sink:   string, filename with absolute path
+
     """
 
-    # get new destination file name
-    if rename is None:
-        newname = sdffile
-    else:
-        newname=rename
+    newdir = os.path.dirname(sink)
 
-    # make new directory if not existing
+    # check for existing file
+    if os.path.exists(sink):
+        print("File already exists: %s. Please provide a new filename.\n" % (sink))
+        return
+
+    # make new directory if needed
     if not os.path.isdir(newdir):
         os.makedirs(newdir)
-
-    # get source and sink path with filename
-    source = olddir+sdffile
-    sink = newdir+newname
 
     # copy file from olddir to newdir
     try:

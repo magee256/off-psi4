@@ -186,7 +186,7 @@ def prep(arg1, arg2, arg3, arg4=None):
     print "matchMinima file prep complete for %s." %\
         os.path.join(destdir, sink)
 
-def matchMinima(arg1, arg2, arg3):
+def matchMinima(wdir, sdfRef, sdfList):
     """
     For list of SDF files, match the conformer minima to those of the reference
        SDF file. Ex. Conf #1 of reference matches with conf #7 of file1 and
@@ -196,17 +196,14 @@ def matchMinima(arg1, arg2, arg3):
 
     Parameters
     ----------
-    arg1: str - working directory containing SDF files to be analyzed
-    arg2: str - name of the SDF file which is to be used as reference for all mols
-    arg3: str list - list of the SDF file names to be analyzed.
-          This list should include the reference SDF file (arg2).
+    wdir: str - working directory containing SDF files to be analyzed
+    sdfRef: str - name of the SDF file which is to be used as reference for all mols
+    sdfList: str list - list of the SDF file names to be analyzed.
+          This list should include the reference SDF file (sdfRef).
 
     """
     
-    wdir = arg1
-    sdfRef = arg2
-    sdfList = arg3
-    numFiles = len(arg3)
+    numFiles = len(sdfList)
     
     os.chdir(wdir)
     numMols = 0

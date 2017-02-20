@@ -30,7 +30,7 @@ def GetTime(filename):
     time = sum(times) / float(len(times))
     return time
 
-def ProcessOutput(filename, Props):
+def ProcessOutput(filename, Props, spe=False):
     """ 
     Go through output file and get level of theory (method and basis set),
         number of optimization steps, initial and final energies, and
@@ -41,6 +41,7 @@ def ProcessOutput(filename, Props):
     ----------
     filename: string name of the output file. E.g. "output.dat"
     Props: dictionary where all the data will go. Can be empty or not.
+    spe: Boolean - are the Psi4 results of a single point energy calcn?
 
     Returns
     -------
@@ -48,30 +49,48 @@ def ProcessOutput(filename, Props):
            keys are: basis, method, numSteps, initEnergy, finalEnergy, coords
 
     """
+    try:
+        f = open(filename,"r")
+    except IOError:
+        sys.exit("No %s file found in directory of %s" \
+                 % ( filename,os.getcwd() ))
+
+
     rough = []
     coords = []
-    f = open(filename,"r")
     lines = f.readlines()
     it = iter(lines)
+
+    if spe: # Process single point energy calcns differently
+        for line in it:
+            if "set basis" in line:
+                Props['basis'] = line.split()[2]
+            if "energy(" in line:
+                Props['method'] = line.split('\'')[1]
+            if "Total Energy =" in line:
+                Props['finalEnergy'] = float(line.split()[3])
+        return Props
+
     # Loop through file to get method, basis set, numSteps, energies, coords
     for line in it:
-       if "set basis" in line:
-           Props['basis'] = line.split()[2]
-       if "optimize(" in line:
-           Props['method'] = line.split('\'')[1]
-       if "Optimization is complete" in line:
-           Props['numSteps'] = line.strip().split(' ')[5]
-           for _ in xrange(8):
-               line = next(it)
-           Props['initEnergy'] = float(line.split()[1])
-       if "Final energy" in line:
-           Props['finalEnergy'] = float(line.split()[3])
-           line = next(it) # "Final (previous) structure:"
-           line = next(it) # "Cartesian Geometry (in Angstrom)"
-           line = next(it) # Start of optimized geometry
-           while "Saving final" not in line:
-               rough.append(line.split()[1:4])
-               line = next(it)
+        if "set basis" in line:
+            Props['basis'] = line.split()[2]
+        if "optimize(" in line:
+            Props['method'] = line.split('\'')[1]
+        if "Optimization is complete" in line:
+            Props['numSteps'] = line.strip().split(' ')[5]
+            for _ in xrange(8):
+                line = next(it)
+            Props['initEnergy'] = float(line.split()[1])
+        if "Final energy" in line:
+            Props['finalEnergy'] = float(line.split()[3])
+            line = next(it) # "Final (previous) structure:"
+            line = next(it) # "Cartesian Geometry (in Angstrom)"
+            line = next(it) # Start of optimized geometry
+            while "Saving final" not in line:
+                rough.append(line.split()[1:4])
+                line = next(it)
+
     # Convert the 2D (3xN) coordinates to 1D list of length 3N (N atoms).
     for atomi in rough:
         coords += [float(i) for i in atomi]
@@ -80,7 +99,7 @@ def ProcessOutput(filename, Props):
     return Props
 
     
-def SetOptSDTags(Conf, Props):
+def SetOptSDTags(Conf, Props, spe=False):
     """
     WORDS WORDS WORDS
 
@@ -90,25 +109,35 @@ def SetOptSDTags(Conf, Props):
     Props:      Dictionary output from ProcessOutput function.
                 Should contain the keys: basis, method, numSteps,
                 initEnergy, finalEnergy, coords, time
+    spe:        Boolean - are the Psi4 results of a single point energy calcn?
+
     """
 
-    # check that finalEnergy is there. if not, opt probably did not finish
-    # make a note of that in SD tag
-    if not 'finalEnergy' in Props:
-        oechem.OEAddSDData(Conf, "Note on opt.", "JOB DID NOT FINISH")
-        return
 
     # get level of theory for setting SD tags
     method = Props['method']
     basisset = Props['basis']
     
+    # check that finalEnergy is there. if not, opt probably did not finish
+    # make a note of that in SD tag
+    if not 'finalEnergy' in Props:
+        if not spe: oechem.OEAddSDData(Conf, "Note on opt.", \
+ "JOB DID NOT FINISH (opt %s/%s)" % (method, basisset))
+        else: oechem.OEAddSDData(Conf, "Note on opt.",\
+ "JOB DID NOT FINISH (opt %s/%s)" % (method, basisset))
+        return
+
     # Set new SD tag for conformer's final energy
-    taglabel = "QM Psi4 Final Opt. Energy (Har) %s/%s" % (method, basisset)
+    if not spe: taglabel = "QM Psi4 Final Opt. Energy (Har) %s/%s" % (method, basisset)
+    else: taglabel = "QM Psi4 Single Pt. Energy (Har) %s/%s" % (method, basisset)
     oechem.OEAddSDData(Conf, taglabel, str(Props['finalEnergy']))
 
     # Set new SD tag for wall-clock time
-    taglabel = "QM Psi4 Opt. Runtime (sec) %s/%s" % (method, basisset)
+    if not spe: taglabel = "QM Psi4 Opt. Runtime (sec) %s/%s" % (method, basisset)
+    else: taglabel = "QM Psi4 Single Pt. Runtime (sec) %s/%s" % (method, basisset)
     oechem.OEAddSDData(Conf, taglabel, str(Props['time']))
+
+    if spe: return # stop here if SPE
 
     # Set new SD tag for original conformer number
     # !! Opt2 files should ALREADY have this !! Opt2 index is NOT orig index!
@@ -127,28 +156,22 @@ def SetOptSDTags(Conf, Props):
 
 ### ------------------- Script -------------------
 
-def getPsiResults(arg1, arg2, arg3, arg4=None, arg5=None):
+def getPsiResults(wdir, origsdf, finsdf, spe=False, timefile=None, psiout=None):
     """
     Parameters
     ----------
-    arg1: string - directory containing (1) all confs' jobs, (2) orig sdf file,
-                   and the (3) soon-generated final output sdf file.
-    arg2: string - full name of original pre-opt SDF file. E.g. "name.sdf"
-    arg3: string - full name of final SDF file with optimized results.
-    arg4: string - name of the Psi4 timer files. Default is "timer.dat"
-    arg5: string - name of the Psi4 output files. Default is "output.dat"
+    wdir: string - directory containing (1) all confs' jobs, (2) orig sdf file,
+                   and the (3) soon-to-be-generated final output sdf file.
+    origsdf:  string - full name of original pre-opt SDF file. E.g. "name.sdf"
+    finsdf:   string - full name of final SDF file with optimized results.
+    spe:     Boolean - are the Psi4 results of a single point energy calcn?
+    timefile: string - name of the Psi4 timer files. Default is "timer.dat"
+    psiout:   string - name of the Psi4 output files. Default is "output.dat"
 
     """
-    wdir= arg1                  # working directory
-    origsdf = arg2              # original sdf file before opt
-    finsdf = arg3               # final sdf file to write results
-    if arg4 != None:            # specify timer file to read, else 'timer.dat'
-        timefile = arg4
-    else:
+    if timefile is None:
         timefile = "timer.dat"
-    if arg5 != None:            # specify output to read, else 'output.dat'
-        psiout = arg5
-    else:
+    if psiout is None:
         psiout = "output.dat"
 
     os.chdir(wdir)
@@ -188,17 +211,26 @@ def getPsiResults(arg1, arg2, arg3, arg4=None, arg5=None):
                 props['time'] = "timer.dat file not found"
                 pass
             # process output and get dictionary results
-            props = ProcessOutput(psiout, props)
+            #if not spe: props = ProcessOutput(psiout, props)
+            #else: props = ProcessOutput(psiout, props, spe=True)
+            props = ProcessOutput(psiout, props, spe)
             # Set last coordinates from optimization
-            if len(props['coords']) != 0 :  # skip SetCoords if coords missing
+            #    skip SetCoords if coords missing
+            if 'coords' in props and len(props['coords']) != 0 :
                 conf.SetCoords(oechem.OEFloatArray(props['coords']))
             # Set SD tags for this molecule
-            SetOptSDTags(conf, props)
+            #if not spe: SetOptSDTags(conf, props)
+            #else: SetOptSDTags(conf, props, spe)
+            SetOptSDTags(conf, props, spe)
             # Write output file
             oechem.OEWriteConstMolecule(write_ofs, conf)
     ifs.close()
     write_ofs.close()
+    try:
+        return props['method'], props['basis']
+    except KeyError:
+        return None, None 
 
 if __name__ == "__main__":
-    getPsiResults(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+    getPsiResults(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
 

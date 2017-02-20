@@ -7,7 +7,7 @@
 ##  - a new subdir is created in parent directory
 ## All conformers of all molecules are written out to "filename.sdf".
 
-## Import and call smi2confs.smi2confs(arg1, arg2, arg3, arg4)
+## Import and call smi2confs.smi2confs(wdir, smiles, resClash=True, quickOpt=True)
 
 import os, sys
 import openeye.oechem as oechem
@@ -143,22 +143,20 @@ def QuickOpt( Mol):
 
 ### ------------------- Script -------------------
 
-def smi2confs(arg1, arg2, arg3=True, arg4=True):
+def smi2confs(wdir, smiles, resClash=True, quickOpt=True):
     """
     From a file containing smiles strings, generate omega conformers,
        resolve steric clashes, do a quick MM opt, and write SDF output.
 
     Parameters
     ----------
-    arg1: str - working directory containing .smi file
-    arg2: str - name of the smiles file. E.g. "name.smi"
-    arg3: boolean - Resolve steric clashes or not.
-    arg4: boolean - QuickOpt or not.
+    wdir: str - working directory containing .smi file
+    smiles: str - name of the smiles file. E.g. "name.smi"
+    resClash: boolean - Resolve steric clashes or not.
+    quickOpt: boolean - QuickOpt or not.
 
     """
-    wdir = arg1
-    smiles = arg2
-    sdfout = arg2.split('.')[0] + '.sdf'
+    sdfout = smiles.split('.')[0] + '.sdf'
     os.chdir(wdir)
     
     ### Read in smiles file.
@@ -177,7 +175,7 @@ def smi2confs(arg1, arg2, arg3=True, arg4=True):
 
     ### Output files detailing number of resolved clashes
     ###   and original number of conformers before MM opt.
-    conffile = open('numOrigConfs.txt', 'w')
+    conffile = open('numOrigConfs.txt', 'a')
     
     ### For each molecule: label atoms, generate confs, resolve clashes, optimize.
     for smimol in ifs.GetOEMols():
@@ -188,14 +186,14 @@ def smi2confs(arg1, arg2, arg3=True, arg4=True):
         for i, conf in enumerate( mol.GetConfs()):
             print (mol.GetTitle(), i+1)
             ### Resolve bad clashes.
-            if arg3:
+            if resClash:
                 print "Resolving bad clashes..."
                 if not ResolveBadClashes( conf, "numClashes.txt" ):
                     print('Resolving bad clashes failed for molecule %s \
 conformer %d:' % (mol.GetTitle(),i+1) )
                     continue
             ### MM optimization.
-            if arg4:
+            if quickOpt:
                 print "Doing a quick MM (SD) optimization..."
                 if not QuickOpt( conf):
                     print('Quick optimization failed for molecule %s \
