@@ -1,0 +1,22 @@
+
+
+ script modifications
+  0. remove adir dependency from all scripts. Input file should be in relevant directory already.
+  1. update GetSDList from timeAvg to matchMinima
+  2. remove the wdir variables! instead use os.path.dirname(file)
+  3. remove any global variables outside functions.
+
+ clean up
+  1. argument names
+  2. docstrings
+  3. import modules
+  4. warning can't open file --> include return line after
+  5. Length of python lines for purple stop signal
+
+ write some kind of fucking instructions manual
+  - actually, update docstrings and description for each script
+  - then combine these into one document, 'documentation.md' or something
+
+ figure out why slurm skips jobs?
+ is numConfs supposed to stay constant before and after SPE calcns?
+ how much of the ancillary SDF files should we keep? delete the *1* files?
