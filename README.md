@@ -1,15 +1,9 @@
 
- ------------
- | Overview |
- ------------
+# Overview
 
- --------------
- | Components |
- --------------
+# Components
  
- ----------
- | Naming |
- ----------
+# Naming
 
  Base names (e.g. basename.smi, basename.sdf) can contain underscores but no dashes or dots.
   > Dash is used for SDF numbering code, dot is used for splitting based on file extension.
@@ -22,9 +16,7 @@
     CCCC AlkEthOH_c1008
     CCOC(C)(C)C(C)(C)O AlkEthOH_c1178
 
- ----------------
- | Instructions | *************** update me
- ----------------
+# Instructions .... update me!
 
  xx. Generate conformers, quick MM optimization, Psi4 input files.
      python /work/cluster/limvt/qm_AlkEthOH/pipeline/01_scripts/12_executor.py -f /include/full/path/to/file.smi --setup
@@ -43,9 +35,7 @@
      Open python and "import timeAvg.py". Must be in same directory as script.
      timeAvg.compareSPEopt('/include/path/to/file1.ext','/include/path/to/file2.ext', "QM spe", "QM opt energy", 'b3lyp-d3mbj','def2-tzvp',m2=None,b2=None,verbose=True)
 
- ----------
- | Output |
- ----------
+# Output
 
  SDF file numbering codes (along the lines of UNIX permissions...)
  Here, x is used as a placeholder for either 0, 1, or 2.
