@@ -1,10 +1,14 @@
 
 
  script modifications
-  0. remove adir dependency from all scripts. Input file should be in relevant directory already.
-  1. update GetSDList from timeAvg to matchMinima
-  2. remove the wdir variables! instead use os.path.dirname(file)
-  3. remove any global variables outside functions.
+  1. timeAvg
+     * update GetSDList from timeAvg to matchMinima
+     * make timeAvg able to take command line inputs, rename 
+     * print out the tag, level of theory being analyzed
+  2. remove adir dependency from all scripts. Input file should be in relevant directory already.
+  3. remove the wdir variables! instead use os.path.dirname(file)
+  4. remove any global variables outside functions.
+  5. make sure that blank return matches number of expected returns, e.g. return (None, None)
 
  clean up
   1. argument names

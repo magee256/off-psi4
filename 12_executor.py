@@ -9,21 +9,23 @@ import confs2psi
 import getPsiResults
 
 # TODO
-# make method and basis set command line arguments bc opt2 will differ
 
-# Usage: python executor.py -f /path/to/inputfile --setup 
+# Example usage:
+#   python executor.py -f /path/to/inputfile --setup -m 'mp2' -b 'def2-sv(p)'
+#   python executor.py -f /path/to/inputfile --results -m 'mp2' -b 'def2-sv(p)'
+#   python executor.py -f /path/to/inputfile --setup --spe -m 'b3lyp-d3mbj' -b 'def2-tzvp'
+#   python executor.py -f /path/to/inputfile --results --spe -m 'b3lyp-d3mbj' -b 'def2-tzvp'
 
-# Envisioned pipeline stages:
-#   I.   feed in smiles file > generate confs > MM optimize > generate psi4 files
-#   II. 
-#   III. feed in sdf file with QM coords > generate SPE psi4 input files 
+# Envisioned pipeline stages with this script:
+#   I.   feed in smiles file > generate confs > MM optimize > generate psi4 inputs
+#   II.  process psi4 results
+#   III. generate new Psi4 inputs from II (e.g. SPE or OPT2)
+#   IV.  process psi4 results
 
 # Flexibility: 
 #   - can feed it in an SDF file (which already has ready-2-go-confs) to set up Psi4.
-#   - in special cases, can feed in a mol2 file for conformers of ONE molecule.
-#     User will have to specify molecule name and charge (for ALL) confs.
-#     If these differ among confs, don't go the mol2 route. Test case make all charges -6
-#     instead of neutral. Mol name may be ok, but used VMD which reset names.
+#   - can sort of setup mol2 files (e.g. for one mol and all its confs) but 
+#     check that molecule name and total charge is correct in Psi4 input files.
 
 
 # Note 1: This pipeline uses some preset parameters, such as 
@@ -37,7 +39,11 @@ import getPsiResults
 def main(**kwargs):
     _, extension = os.path.splitext(opt['filename'])
     adir, fname = os.path.split(opt['filename'])
-    if adir == '': adir = './'
+    if adir == '' or adir is None or adir is '.':
+        adir = os.getcwd()
+        fullname = os.path.join(adir,opt['filename'])
+    else:
+        fullname = opt['filename']
     base = fname.replace('-', '.').split('.')[0]
 
     if opt['setup']:
@@ -47,35 +53,36 @@ def main(**kwargs):
             msdf = base + '.sdf'
             smi2confs.smi2confs(adir, opt['filename'])
             filterConfs.filterConfs(adir, msdf, "MM Szybki SD Energy", 200)
-        else: msdf = opt['filename']
+        else: msdf = fullname
 
         ### Generate Psi4 inputs.
         print("\nCreating Psi4 input files for %s in %s ..." % (base, adir))
-        if not opt['spe']:
-#            confs2psi.confs2psi(adir,msdf,'b3lyp-d3mbj','def2-tzvp',False,"1.5 Gb")
-            confs2psi.confs2psi(adir,msdf,'mp2','def2-sv(p)',False,"1.5 Gb")
-        else:
-            confs2psi.confs2psi(adir,msdf,'b3lyp-d3mbj','def2-tzvp',True,"1.5 Gb")
+        confs2psi.confs2psi(msdf,opt['method'],opt['basisset'],opt['spe'],"5.0 Gb")
 
     else:  # ========== AFTER QM =========== #
-        print("Getting Psi4 results and filtering for %s ..." %(opt['filename']))
 
         ### Specify output file name
-        if "220" not in opt['filename']:
+        if "220" not in fname:
             osdf = base + '-210.sdf'
             suffix = '220'
         else:
             osdf = base + '-221.sdf'
             suffix = '222'
-        if os.path.exists(osdf):
-            print("File already exists: %s. Exiting without getting results.\n" % (osdf))
-            return
 
-        ### Get results and filter
-        method, basisset = getPsiResults.getPsiResults(adir, opt['filename'], osdf, spe=opt['spe'])
-        if not opt['spe']: tag = "QM Psi4 Final Opt. Energy (Har) b3lyp-d3mbj/def2-tzvp"
-        else: tag = "QM Psi4 Single Pt. Energy (Har) %s/%s" % (method, basisset)
-        filterConfs.filterConfs(adir, osdf, tag, suffix)
+        ### Get results.
+        print("Getting Psi4 results for %s ..." %(fname))
+        method, basisset = getPsiResults.getPsiResults(fullname, osdf, spe=opt['spe'])
+        if method is None or basisset is None:
+            method = opt['method']
+            basisset = opt['basisset']
+
+        ### Filter.
+        print("Filtering Psi4 results for %s ..." %(fname))
+        if not opt['spe']: 
+            tag = "QM Psi4 Final Opt. Energy (Har) %s/%s" % (method, basisset)
+        else: 
+            tag = "QM Psi4 Single Pt. Energy (Har) %s/%s" % (method, basisset)
+        filterConfs.filterConfs(os.path.join(adir,osdf), tag, suffix)
 
 
 
@@ -98,6 +105,11 @@ if __name__ == "__main__":
         help="If True, either set up or process single point energy\
  calculations. If False, will set up or process geometry optimizations.\
  Can be used with either the --setup flag or the --results flag.")
+
+    req.add_argument("-m", "--method",
+        help="Name of QM method. Put this in 'quotes'.")
+    req.add_argument("-b", "--basisset",
+        help="Name of QM basis set. Put this in 'quotes'.")
 
     args = parser.parse_args()
     opt = vars(args)

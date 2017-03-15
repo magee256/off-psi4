@@ -56,7 +56,7 @@ def GetSDList(Mol, Property, Method=None, Basisset=None):
 ### ------------------- Script -------------------
 
 
-def timeAvg(sdfRef, steps=False):
+def timeAvg(sdfRef, method, basis, steps=False):
     """
 
     For an SDF file with all confs of all mols, get the average runtime
@@ -78,19 +78,24 @@ def timeAvg(sdfRef, steps=False):
     molsRef = ifsRef.GetOEMols()
 
     timeF = open(os.path.join(os.path.dirname(sdfRef),"timeAvgs.txt"), 'a')
+    timeF.write("\nAnalyzing file: %s \n" % (sdfRef))
     if not steps: timeF.write("\nAverage runtime (sec) over all confs for each molecule\n")
     else: timeF.write("\nAverage number of steps over all confs for each molecule\n")
 
     # Grab all the times.
     for rmol in molsRef:
         if not steps:
-            tmol = np.array(map(float, GetSDList(rmol, "runtime", "mp2", "def2-sv(p)")))
+            tmol = np.array(map(float, GetSDList(rmol, "runtime", method, basis)))
         else:
-            tmol = np.array(map(float, GetSDList(rmol, "step", "mp2", "def2-sv(p)")))
-        timeF.write( "%s\t%s\n" % (rmol.GetTitle(), np.mean(tmol)) )
+            tmol = np.array(map(float, GetSDList(rmol, "step", method, basis)))
+
+        # exclude conformers for which job did not finish (nan)
+        nanIndices = np.argwhere(np.isnan(tmol))
+        for i in reversed(nanIndices): # loop in reverse to delete correctly
+            tmol = np.delete(tmol, i)
+        timeF.write( "%s\t%d confs\t\t%.3f\n" % (rmol.GetTitle(), tmol.size, np.mean(tmol)) )
     timeF.close()
 
-    print tmol
 
 
 def compareSPEopt(sdf1, sdf2, tag1, tag2, m1, b1, m2=None, b2=None, verbose=False):
@@ -106,6 +111,7 @@ def compareSPEopt(sdf1, sdf2, tag1, tag2, m1, b1, m2=None, b2=None, verbose=Fals
     tag1 | str | data in this tag from sdf1 to be compared to sdf2
     tag2 | str | data in this tag from sdf2 to be compared to sdf1
     m1/b1| str | method/basis from sdf1. If m2/b2 is None, use same from m1/b1.
+    verbose | bool | print information on each conformer
 
     For tags, see options in GetSDList function.
 
@@ -159,9 +165,11 @@ def compareSPEopt(sdf1, sdf2, tag1, tag2, m1, b1, m2=None, b2=None, verbose=Fals
         #print sqd
         #print mn
         rt = 627.5095*np.sqrt(mn)
-        compF.write("\n%s\t%.4f\n" % (imol.GetTitle(), rt))
         if verbose:
+            compF.write("\n%s\t%.4f\n" % (imol.GetTitle(), rt))
             for i in range(np.shape(irel)[0]):
                 compF.write( "%d\t%.8f\t%.8f\n" % (i, irel[i], jrel[i]) )
+        else:
+            compF.write("\n%s\t%.4f" % (imol.GetTitle(), rt))
     compF.close()
 

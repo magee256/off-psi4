@@ -156,17 +156,32 @@ def SetOptSDTags(Conf, Props, spe=False):
 
 ### ------------------- Script -------------------
 
-def getPsiResults(wdir, origsdf, finsdf, spe=False, timefile=None, psiout=None):
+def getPsiResults(origsdf, finsdf, spe=False, timefile=None, psiout=None):
+
     """
+    Read in OEMols (and each of their conformers) in origsdf file, 
+        get results from Psi4 calculations in the same directory as origsdf,
+        and write out results into finsdf file.
+    Directory layout is .../maindir/molName/confNumber/outputfiles .
+
     Parameters
     ----------
-    wdir: string - directory containing (1) all confs' jobs, (2) orig sdf file,
-                   and the (3) soon-to-be-generated final output sdf file.
-    origsdf:  string - full name of original pre-opt SDF file. E.g. "name.sdf"
+    origsdf:  string - PATH+full name of orig pre-opt SDF file.
+        Path should contain (1) all confs' jobs, (2) orig sdf file.
+        This path will house soon-generated final output sdf file.
     finsdf:   string - full name of final SDF file with optimized results.
     spe:     Boolean - are the Psi4 results of a single point energy calcn?
     timefile: string - name of the Psi4 timer files. Default is "timer.dat"
     psiout:   string - name of the Psi4 output files. Default is "output.dat"
+
+    Returns
+    -------
+    method: string - QM method from Psi4 calculations
+    basisset: string - QM basis set from Psi4 calculations
+
+    None is returned if the function returns early (e.g., if output file
+       already exists) or if there is KeyError from processing last
+       iteration of output file (last conf of last mol).
 
     """
     if timefile is None:
@@ -174,9 +189,10 @@ def getPsiResults(wdir, origsdf, finsdf, spe=False, timefile=None, psiout=None):
     if psiout is None:
         psiout = "output.dat"
 
+    wdir, fname = os.path.split(origsdf)
     os.chdir(wdir)
+
     # Read in .sdf file and distinguish each molecule's conformers
-    os.chdir(wdir)
     ifs = oechem.oemolistream()
     ifs.SetConfTest( oechem.OEAbsoluteConfTest() )
     if not ifs.open(origsdf):
@@ -189,7 +205,7 @@ def getPsiResults(wdir, origsdf, finsdf, spe=False, timefile=None, psiout=None):
     write_ofs = oechem.oemolostream()
     if os.path.exists(writeout):
         print("File already exists: %s. Skip getting results.\n" % (finsdf))
-        return
+        return (None, None)
     if not write_ofs.open(writeout):
         oechem.OEThrow.Fatal("Unable to open %s for writing" % writeout)
     
@@ -211,16 +227,12 @@ def getPsiResults(wdir, origsdf, finsdf, spe=False, timefile=None, psiout=None):
                 props['time'] = "timer.dat file not found"
                 pass
             # process output and get dictionary results
-            #if not spe: props = ProcessOutput(psiout, props)
-            #else: props = ProcessOutput(psiout, props, spe=True)
             props = ProcessOutput(psiout, props, spe)
             # Set last coordinates from optimization
             #    skip SetCoords if coords missing
             if 'coords' in props and len(props['coords']) != 0 :
                 conf.SetCoords(oechem.OEFloatArray(props['coords']))
             # Set SD tags for this molecule
-            #if not spe: SetOptSDTags(conf, props)
-            #else: SetOptSDTags(conf, props, spe)
             SetOptSDTags(conf, props, spe)
             # Write output file
             oechem.OEWriteConstMolecule(write_ofs, conf)
@@ -232,5 +244,5 @@ def getPsiResults(wdir, origsdf, finsdf, spe=False, timefile=None, psiout=None):
         return None, None 
 
 if __name__ == "__main__":
-    getPsiResults(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
+    getPsiResults(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
 

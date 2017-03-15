@@ -6,7 +6,7 @@
 ## in order to roughly filter out duplicate minima and keep unique ones.
 ## Filtered conformers for all molecules are written out in SDF file.
 
-## Import and call filterConfs.filterConfs(wdir, rmsdfile, tag, suffix)
+## Import and call filterConfs.filterConfs(rmsdfile, tag, suffix)
 
 import re
 import os, sys, glob
@@ -106,8 +106,31 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
 
 ### ------------------- Script -------------------
 
-def filterConfs(wdir, rmsdfile, tag, suffix):
+def filterConfs(rmsdfile, tag, suffix):
+    """
+    Read in OEMols (and each of their conformers) in 'rmsdfile'.
+    For each molecule:
+        rough filter conformers based on energy differences specified by 'tag',
+        fine filter conformers based on RMSD values.
 
+    Parameters
+    ----------
+    rmsdfile: string - PATH+full name of to-be-filtered SDF file.
+        This path will house soon-generated final output sdf file.
+    tag:      string - describing the SD tag with the energy value to rough
+        filter conformers. A very small energy difference is considered
+        to be the same conformer (see thresE). Above this energy difference,
+        RMSD comparison is evaluated to distinguish if two confs are diff.
+        Ex. QM Psi4 Final Opt. Energy (Har) mp2/def-sv(p)
+            QM Psi4 Single Pt. Energy (Har) mp2/def-sv(p)
+    suffix:   string - string appended to the basename of rmsdfile to distinguish
+        that this file has been filtered.
+        Ex. if rmsdfile=/some/dir/basename-210.sdf and suffix=220 then output
+            becomes /some/dir/basename-220.sdf
+      
+    """
+
+    wdir, fname = os.path.split(rmsdfile)
     os.chdir(wdir)
     numConfsF = open(os.path.join(wdir,"numFiltConfs.txt"), 'a')
     numConfsF.write(tag+"\n")
@@ -120,7 +143,7 @@ def filterConfs(wdir, rmsdfile, tag, suffix):
     rmsd_molecules = rmsd_ifs.GetOEMols()
     
     # Open outstream file.
-    rmsdout = ( "%s-%s.sdf" % (rmsdfile.replace('-', '.').split('.')[0], str(suffix)) )
+    rmsdout = ( "%s-%s.sdf" % (fname.replace('-', '.').split('.')[0], str(suffix)) )
     rmsd_ofs = oechem.oemolostream()
     if os.path.exists(rmsdout):
         print("%s output file already exists. Skip filtering.\n" % rmsdout)
@@ -139,6 +162,6 @@ def filterConfs(wdir, rmsdfile, tag, suffix):
     numConfsF.close()
     rmsd_ofs.close()
 
-    print("Done filtering %s.\n" % (rmsdfile))
+    print("Done filtering %s.\n" % (fname))
 # done
 

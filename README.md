@@ -2,6 +2,17 @@
 # Overview
 
 # Components
+
+  * 12\_executor.py
+  * confs2psi.py
+  * examples
+  * filterConfs.py
+  * getPsiResults.py
+  * matchMinima.py
+  * selectConfs.tcl
+  * smi2confs.py
+  * timeAvg.py
+  * viewer.ipynb
  
 # Naming
 
@@ -13,28 +24,32 @@ Smiles file should contain, in each line: "SMILESSTRING title" and be named in f
   * Molecule title should have no dashes, as Psi4 will raise an error.
 
 Examples:
-  * CC(C(C(C)O)O)O AlkEthOH_c42
-  * CCCC AlkEthOH_c1008
-  * CCOC(C)(C)C(C)(C)O AlkEthOH_c1178
+  * CC(C(C(C)O)O)O AlkEthOH\_c42
+  * CCCC AlkEthOH\_c1008
+  * CCOC(C)(C)C(C)(C)O AlkEthOH\_c1178
 
 # Instructions .... update me!
+Execute these commands in the directory that you want input/output files to be generated.
 
  1. Generate conformers, quick MM optimization, Psi4 input files.
-     python /work/cluster/limvt/qm_AlkEthOH/pipeline/01_scripts/12_executor.py -f /include/full/path/to/file.smi --setup
+     * python executor.py -f /include/full/path/to/file.smi --setup -m 'mp2' -b 'def2-sv(p)'
 
  2. Get Psi4 results from the last set of optimizations.
-     python /work/cluster/limvt/qm_AlkEthOH/pipeline/01_scripts/12_executor.py -f /include/full/path/to/file-200.sdf --results
+     * python executor.py -f /include/full/path/to/file-200.sdf --results -m 'mp2' -b 'def2-sv(p)'
 
- 3. Set up Psi4 SPE calculations from last results.
-     python /work/cluster/limvt/qm_AlkEthOH/pipeline/01_scripts/12_executor.py -f /include/full/path/to/file-220.sdf --setup --spe
+ 3. In a new (sub?)directory, set up Psi4 SPE calculations from last results.
+     * python executor.py -f /include/full/path/to/file-220.sdf --setup --spe -m 'b3lyp-d3mbj' -b 'def2-tzvp'
 
  4. Get Psi4 results from SPEs.
-     python /work/cluster/limvt/qm_AlkEthOH/pipeline/01_scripts/12_executor.py -f /include/full/path/to/file-220.sdf --results --spe
+     * python executor.py -f /include/full/path/to/file-220.sdf --results --spe -m 'b3lyp-d3mbj' -b 'def2-tzvp'
 
- 5. Compare SPE and OPT2 files.
-     Copy both files in new directory (optional).
-     Open python and "import timeAvg.py". Must be in same directory as script.
-     timeAvg.compareSPEopt('/include/path/to/file1.ext','/include/path/to/file2.ext', "QM spe", "QM opt energy", 'b3lyp-d3mbj','def2-tzvp',m2=None,b2=None,verbose=True)
+ 5. Join results of SPEs and plot energy values (not recd for test sets > 20). Else can plot on a single mol's conformers.
+     * python executor.py -f       --combine
+
+ 6. Compare SPE and OPT2 files.
+     * Copy both files in new directory (optional).
+     * Open python and "import timeAvg.py". Must be in same directory as script.
+     * timeAvg.compareSPEopt('/include/path/to/file1.ext','/include/path/to/file2.ext', "QM spe", "QM opt energy", 'b3lyp-d3mbj','def2-tzvp',m2=None,b2=None,verbose=True)
 
 # Output
 

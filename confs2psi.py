@@ -4,21 +4,13 @@
 ## Specifying SPE=True will write inputs for single point energy calcns,
 ## else the default input file type is for geometry optimization.
 
-## Import and call confs2psi.confs2psi(wdir, insdf, method, basis)
+## Import and call confs2psi.confs2psi(insdf, method, basis)
 
 
 import os, sys
 import openeye.oechem as oechem
 import shutil
 
-### ------------------- Variables -------------------
-
-#wdir="/work/cluster/limvt/qm_AlkEthOH/pipeline/1_chains-A"
-#fileprefix = 'AlkEthOH_chain_tiny-minima'
-#methods = ['b97-d3', 'b3lyp-d3','mp2']
-#methods = ['b3lyp-d3mbj']
-#basissets = ['6-31+G(d)','def2-sv(p)' ]
-#basissets = ['def2-tzvp' ]
 
 ### ------------------- Functions -------------------
 
@@ -74,12 +66,11 @@ def MakePSI4Input(mol, label, method, basisset, SPE=False, mem=None):
 
 ### ------------------- Script -------------------
 
-def confs2psi(wdir, insdf, method, basis, spe=False, memory=None):
+def confs2psi(insdf, method, basis, spe=False, memory=None):
     """
     Parameters
     ----------
-    wdir:   string - working directory containing .sdf file
-    insdf:  string - full name of the SDF file. E.g. "name.sdf"
+    insdf:  string - PATH+name of SDF file
     method: string - method. E.g. "mp2"
     basis:  string - basis set. E.g. "def2-sv(p)"
     spe:    boolean. True for single point energy calcns, False for geom opt.
@@ -87,6 +78,7 @@ def confs2psi(wdir, insdf, method, basis, spe=False, memory=None):
     memory: string - memory specification. Psi4 default is 256 Mb. E.g. "1.5 Gb"
 
     """
+    wdir, fname = os.path.split(insdf)
     os.chdir(wdir)
     
     ### Read in .sdf file and distinguish each molecule's conformers

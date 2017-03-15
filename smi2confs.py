@@ -7,7 +7,7 @@
 ##  - a new subdir is created in parent directory
 ## All conformers of all molecules are written out to "filename.sdf".
 
-## Import and call smi2confs.smi2confs(wdir, smiles, resClash=True, quickOpt=True)
+## Import and call smi2confs.smi2confs(smiles, resClash=True, quickOpt=True)
 
 import os, sys
 import openeye.oechem as oechem
@@ -15,12 +15,6 @@ import openeye.oeomega as oeomega
 import openeye.oeszybki as oeszybki
 
 
-
-### ------------------- Variables -------------------
-
-
-#wdir = "/work/cluster/limvt/qm_AlkEthOH/pipeline/1_chains-A"
-#base = "AlkEthOH_chain_tiny"
 
 ### ------------------- Functions -------------------
 
@@ -143,20 +137,21 @@ def QuickOpt( Mol):
 
 ### ------------------- Script -------------------
 
-def smi2confs(wdir, smiles, resClash=True, quickOpt=True):
+def smi2confs(smiles, resClash=True, quickOpt=True):
     """
     From a file containing smiles strings, generate omega conformers,
        resolve steric clashes, do a quick MM opt, and write SDF output.
 
     Parameters
     ----------
-    wdir: str - working directory containing .smi file
-    smiles: str - name of the smiles file. E.g. "name.smi"
+    smiles: str - PATH+name of the smiles file.
     resClash: boolean - Resolve steric clashes or not.
     quickOpt: boolean - QuickOpt or not.
 
     """
-    sdfout = smiles.split('.')[0] + '.sdf'
+    wdir, fname = os.path.split(smiles)
+    base, extension = os.path.splitext(fname)
+    sdfout = base + '.sdf'
     os.chdir(wdir)
     
     ### Read in smiles file.
@@ -207,4 +202,4 @@ conformer %d:' % (mol.GetTitle(),i+1) )
     conffile.close()
 
 if __name__ == "__main__":
-    smi2confs(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    smi2confs(sys.argv[1], sys.argv[2], sys.argv[3])
