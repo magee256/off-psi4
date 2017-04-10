@@ -8,7 +8,11 @@ import filterConfs
 import confs2psi
 import getPsiResults
 
-# TODO
+# Envisioned pipeline stages with this script:
+#   I.   feed in smiles file > generate confs > MM optimize > generate psi4 inputs
+#   II.  process psi4 results
+#   III. generate new Psi4 inputs from II (e.g. SPE or OPT2)
+#   IV.  process psi4 results
 
 # Example usage:
 #   python executor.py -f /path/to/inputfile --setup -m 'mp2' -b 'def2-sv(p)'
@@ -16,25 +20,17 @@ import getPsiResults
 #   python executor.py -f /path/to/inputfile --setup --spe -m 'b3lyp-d3mbj' -b 'def2-tzvp'
 #   python executor.py -f /path/to/inputfile --results --spe -m 'b3lyp-d3mbj' -b 'def2-tzvp'
 
-# Envisioned pipeline stages with this script:
-#   I.   feed in smiles file > generate confs > MM optimize > generate psi4 inputs
-#   II.  process psi4 results
-#   III. generate new Psi4 inputs from II (e.g. SPE or OPT2)
-#   IV.  process psi4 results
-
-# Flexibility: 
-#   - can feed it in an SDF file (which already has ready-2-go-confs) to set up Psi4.
-#   - can sort of setup mol2 files (e.g. for one mol and all its confs) but 
-#     check that molecule name and total charge is correct in Psi4 input files.
-
-
 # Note 1: This pipeline uses some preset parameters, such as 
 #    resClash=True and quickOpt=True (with SD opt) in smi2confs, and
 #    MP2/def2-sv(p) for QM opt1. These can be modified in the argument
 #    inputs here, or in the parent code itself.
 # Note 2: The input file must be in the same directory that the script is
-#    called. The input files are generated in a subdir in this dir.
+#    called. The directory tree goes (pwd)/molName/confNum .
 
+# Flexibility: 
+#   - can feed it in an SDF file (which already has ready-2-go-confs) to set up Psi4.
+#   - can sort of setup mol2 files (e.g. for one mol and all its confs) but 
+#     check that molecule name and total charge is correct in Psi4 input files.
 
 def main(**kwargs):
     _, extension = os.path.splitext(opt['filename'])

@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
-# Usage: import, then call as 
-#  timeAvg.timeAvg('/work/cluster/limvt/qm_AlkEthOH/pipeline/1_chains-A/AlkEthOH_chain_tiny-optimized-minima.sdf')
+# TODO
+# - remove GetSDList here and source it from scratch.py
+
+# Notes on error checking:
+# - Getting relative energies- ValueError: could not convert string to float
+#   Make sure you specify --efromopt if not an SPE file.
+
 import os
 import openeye.oechem as oechem
 import numpy as np
-
+import argparse
 
 ### ------------------- Functions -------------------
 
@@ -47,13 +52,13 @@ def GetSDList(Mol, Property, Method=None, Basisset=None):
 
     SDList = []
     for j, conf in enumerate( Mol.GetConfs() ):
-        if "JOB DID NOT FINISH" not in oechem.OEGetSDData(conf, "Note on opt."):
+        if "DID NOT FINISH" not in oechem.OEGetSDData(conf, "Note on opt.")\
+ or Property =="original index":
             SDList.append(oechem.OEGetSDData(conf, taglabel))
         else:
             SDList.append('nan')
     return SDList
 
-### ------------------- Script -------------------
 
 
 def timeAvg(sdfRef, method, basis, steps=False):
@@ -70,7 +75,7 @@ def timeAvg(sdfRef, method, basis, steps=False):
     """
     
     # Open reference file.
-    print("Opening SDF file ", sdfRef)
+    print("Opening SDF file %s" % sdfRef)
     ifsRef = oechem.oemolistream()
     ifsRef.SetConfTest( oechem.OEAbsoluteConfTest() )
     if not ifsRef.open(sdfRef):
@@ -97,14 +102,12 @@ def timeAvg(sdfRef, method, basis, steps=False):
     timeF.close()
 
 
-
-def compareSPEopt(sdf1, sdf2, tag1, tag2, m1, b1, m2=None, b2=None, verbose=False):
+def calcRelEne(sdfRef, method, basis, eFromOpt=False,outfn='relene.dat'):
     """
 
-    For an SDF file with all confs of all mols, get the average runtime
-       of all conformers for each molecule
+    WORDS
 
-    Parameters
+    Parameters--------UPDATE ME
     ----------
     sdf1 | str | path+name of SDF file with times for all confs of all mols
     sdf2 | str | should have same mols/confs as sdf1, likely diff coords/tags
@@ -117,59 +120,93 @@ def compareSPEopt(sdf1, sdf2, tag1, tag2, m1, b1, m2=None, b2=None, verbose=Fals
 
     """
     
-    # Open files.
-    print("Opening SDF file ", sdf1)
+    # Open file.
+    print("Opening SDF file %s" % sdfRef)
     ifs1 = oechem.oemolistream()
     ifs1.SetConfTest( oechem.OEAbsoluteConfTest() )
-    if not ifs1.open(sdf1):
+    if not ifs1.open(sdfRef):
         oechem.OEThrow.Fatal("Unable to open %s for reading" % sdf1)
     mols1 = ifs1.GetOEMols()
 
-    print("Opening SDF file ", sdf2)
-    ifs2 = oechem.oemolistream()
-    ifs2.SetConfTest( oechem.OEAbsoluteConfTest() )
-    if not ifs2.open(sdf2):
-        oechem.OEThrow.Fatal("Unable to open %s for reading" % sdf1)
-    mols2 = ifs2.GetOEMols()
+    # Determine SD tag from which to obtain energy.
+    if eFromOpt: tagword = "QM opt energy"
+    else: tagword = "QM spe"
 
     # Write description in output file.
-    compF = open(os.path.join(os.path.dirname(sdf1),"comparison.txt"), 'a')
-    compF.write("\nComparison 1 file: %s\nComparison 2 file: %s\n" % (sdf1, sdf2))
-
-    # Figure out m2, b2
-    if m2 is None: m2 = m1
-    if b2 is None: b2 = b1
+    compF = open(os.path.join(os.path.dirname(sdfRef),outfn), 'w')
+    compF.write("# Relative energies (kcal/mol) for file:\n# %s\n" % sdfRef) 
+    compF.write("# using %s energies from %s/%s\n" % (tagword, method, basis))
 
     for imol in mols1:
-        jmol = mols2.next() # loop over both mols
 
         # Get absolute energies from the SD tags
-        iabs = np.array(map(float, GetSDList(imol, tag1, m1, b1)))
-        jabs = np.array(map(float, GetSDList(jmol, tag2, m2, b2)))
+        iabs = np.array(map(float, GetSDList(imol, tagword, method, basis)))
 
-        # exclude conformers for which job did not finish (nan)
-        nanIndices = np.argwhere(np.isnan(jabs))
-        for i in reversed(nanIndices): # loop in reverse to delete correctly
-            iabs = np.delete(iabs, i)
-            jabs = np.delete(jabs, i)
+        # Get omega conformer number of first, for reference info
+        # whole list can be used for matching purposes
+        origids = GetSDList(imol, "original index")
+        refconfid = origids[0]
 
-        # For each, take relative energy to first 
+        # For each, take relative energy to first then convert
         irel = iabs - iabs[0]
-        jrel = jabs - jabs[0]
+        irel = 627.5095*irel
 
-        # take RMSD of conformer energies for this particular mol
-        dev = irel - jrel
-        sqd = np.square(dev)
-        mn = np.sum(sqd)/(np.shape(sqd)[0]-1)
-        #print dev
-        #print sqd
-        #print mn
-        rt = 627.5095*np.sqrt(mn)
-        if verbose:
-            compF.write("\n%s\t%.4f\n" % (imol.GetTitle(), rt))
-            for i in range(np.shape(irel)[0]):
-                compF.write( "%d\t%.8f\t%.8f\n" % (i, irel[i], jrel[i]) )
-        else:
-            compF.write("\n%s\t%.4f" % (imol.GetTitle(), rt))
+        # Write output. This can be used for plotting, RMSD, etc.
+        compF.write("\n# Mol title: %s\n# Energies relative to omega conf # %s\n"\
+                   % (imol.GetTitle(), refconfid))
+        for i in range(np.shape(irel)[0]):
+            compF.write( "%s\t%.8f\n" % (origids[i], irel[i]) )
     compF.close()
+    return True
+
+
+### ------------------- Script -------------------
+
+def main(**kwargs):
+    if opt['time']:
+        timeAvg(opt['filename'], opt['method'], opt['basisset'], steps=True)
+        timeAvg(opt['filename'], opt['method'], opt['basisset'], steps=False)
+    if opt['relene']:
+        calcRelEne(opt['filename'], opt['method'], opt['basisset'], opt['efromopt'])
+
+
+### ------------------- Parser -------------------
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    # analyzing results of an SDF file
+    parser.add_argument("--time", action="store_true", default=False,
+        help="If specified, get average number of steps and wall\
+              clock time over all conformers of each molecule\
+              reported in SDF file.")
+
+    parser.add_argument("--relene", action="store_true", default=False,
+        help="If specified, get lists of relative energies of all conformers\
+ relative to first conformer in common that successfully completed its\
+ QM calculation.")
+
+    parser.add_argument("-f", "--filename",
+        help="SDF file (with FULL path) to be processed.")
+    parser.add_argument("-m", "--method",
+        help="Name of QM method. Put this in 'quotes'.")
+    parser.add_argument("-b", "--basisset",
+        help="Name of QM basis set. Put this in 'quotes'.")
+    parser.add_argument("--efromopt", action="store_true", default=False,
+        help="If specified, get relative energies from optimization\
+              instead of SPE (default).")
+
+    args = parser.parse_args()
+    opt = vars(args)
+
+    ### Check file dependencies.
+
+    if (opt['time'] or opt['relene']):
+        if not os.path.exists(opt['filename']):
+            raise parser.error("Input file %s does not exist." % opt['filename'])
+        try: (opt['method'] and opt['basisset'])
+        except NameError: raise parser.error("A method and basis set must be supplied for\
+ either time or relative energy analysis.")
+
+    main(**opt)
 
