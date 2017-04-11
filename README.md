@@ -1,11 +1,11 @@
 
 # Overview
 
-# Components
+# Pipeline Components
 
   * avgTimeEne.py
   * confs2psi.py
-  * examples/
+  * confs2turb.py
   * executor.py
   * filterConfs.py
   * getPsiResults.py
@@ -97,10 +97,13 @@ Or the 221 files for comparing relative energies of single pt energy calcns.
  * The sdf files on each line should ALL have the same molecules, same conformers, etc. These may differ in coordinates or SD tags.
 
  * Example:
-    # comments begin with pound symbol and are ignored
-    energy
-    /path/and/setofMols-221-opt2.sdf, False, b3lyp-d3mbj ,    def2-tzvp   
-    /path/and/setofMols-221-spe1.sdf, True , b3lyp-d3mbj ,    def2-tzvp   
-    /path/and/setofMols-221-spe2.sdf, True , mp2, cc-pvtz ,  
-    /path/and/setofMols-221-spe3.sdf, True , pbe0, 6-311g**
-
+ 
+ \# comments begin with pound symbol and are ignored
+ 
+ energy
+ 
+ /path/and/setofMols-221-opt2.sdf, False, b3lyp-d3mbj ,    def2-tzvp   
+ /path/and/setofMols-221-spe1.sdf, True , b3lyp-d3mbj ,    def2-tzvp   
+ /path/and/setofMols-221-spe2.sdf, True , mp2, cc-pvtz ,  
+ /path/and/setofMols-221-spe3.sdf, True , pbe0, 6-311g**
+ 
