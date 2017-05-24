@@ -46,6 +46,7 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
 
     """
     confsToDel = set() # declare an empty set (unordered) for confs to delete
+    delCount = 0
 
     # if there's only 1 conf, has SDData ==> True, not ==> False
     if Mol.NumConfs()==1:
@@ -61,6 +62,7 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
         # delete cases that don't have energy (opt not converged; or other)
         if not oechem.OEHasSDData(confRef, Taglabel):
             confsToDel.add(confRef.GetIdx())
+            delCount += 1
             continue
         refE = float(oechem.OEGetSDData(confRef,Taglabel))
     
@@ -84,7 +86,6 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
                 absERel = abs(refE-testE)
             # if energies are much diff., confs are diff, skip.
             if absERel > ThresholdE:
-                print "Skip from energy difference ",absERel
                 continue
             # for the confs with similar E, see if they are diff with RMSD
             rmsd = oechem.OERMSD(confRef,confTest,automorph,heavyOnly,overlay)
@@ -93,11 +94,14 @@ def IdentifyMinima(Mol,Taglabel,ThresholdE,ThresholdRMSD):
                 confsToDel.add(confTest.GetIdx()) 
             
     # for the same molecule, delete tagged conformers
-    print Mol.GetTitle(), " original number of conformers: ",Mol.NumConfs()
+    print("%s original number of conformers: %d" % (Mol.GetTitle(), Mol.NumConfs()))
+    if delCount == Mol.NumConfs():
+        return False
+
     for conf in Mol.GetConfs():
         if conf.GetIdx() in confsToDel:
-            print 'Removing %s conformer index %d' \
-                  % (Mol.GetTitle(),conf.GetIdx())
+            print('Removing %s conformer index %d' \
+                  % (Mol.GetTitle(),conf.GetIdx()))
             if not Mol.DeleteConf(conf):
                 oechem.OEThrow.Fatal("Unable to delete %s GetIdx() %d" \
                                   % (Mol.GetTitle(), conf.GetIdx()))
@@ -131,7 +135,8 @@ def filterConfs(rmsdfile, tag, suffix):
     """
 
     wdir, fname = os.path.split(rmsdfile)
-    os.chdir(wdir)
+#    os.chdir(wdir)
+    wdir = os.getcwd()
     numConfsF = open(os.path.join(wdir,"numFiltConfs.txt"), 'a')
     numConfsF.write(tag+"\n")
 
@@ -146,7 +151,7 @@ def filterConfs(rmsdfile, tag, suffix):
     rmsdout = ( "%s-%s.sdf" % (fname.replace('-', '.').split('.')[0], str(suffix)) )
     rmsd_ofs = oechem.oemolostream()
     if os.path.exists(rmsdout):
-        print("%s output file already exists. Skip filtering.\n" % rmsdout)
+        print("%s output file already exists in %s. Skip filtering.\n" % (rmsdout, os.getcwd()))
         return
     if not rmsd_ofs.open(rmsdout):
         oechem.OEThrow.Fatal("Unable to open %s for writing" % rmsdout)
@@ -162,6 +167,6 @@ def filterConfs(rmsdfile, tag, suffix):
     numConfsF.close()
     rmsd_ofs.close()
 
-    print("Done filtering %s.\n" % (fname))
+    print("Done filtering %s to %s.\n" % (fname, rmsdout))
 # done
 

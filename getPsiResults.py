@@ -3,7 +3,7 @@
 import re
 import os, sys, glob
 import openeye.oechem as oechem
-
+import procTags as pt
 
 
 ### ------------------- Functions -------------------
@@ -98,61 +98,6 @@ def ProcessOutput(filename, Props, spe=False):
     f.close()
     return Props
 
-    
-def SetOptSDTags(Conf, Props, spe=False):
-    """
-    WORDS WORDS WORDS
-
-    Parameters
-    ----------
-    Conf:       Single conformer from OEChem molecule
-    Props:      Dictionary output from ProcessOutput function.
-                Should contain the keys: basis, method, numSteps,
-                initEnergy, finalEnergy, coords, time
-    spe:        Boolean - are the Psi4 results of a single point energy calcn?
-
-    """
-
-
-    # get level of theory for setting SD tags
-    method = Props['method']
-    basisset = Props['basis']
-    
-    # check that finalEnergy is there. if not, opt probably did not finish
-    # make a note of that in SD tag
-    if not 'finalEnergy' in Props:
-        if not spe: oechem.OEAddSDData(Conf, "Note on opt.", \
- "JOB DID NOT FINISH (opt %s/%s)" % (method, basisset))
-        else: oechem.OEAddSDData(Conf, "Note on opt.",\
- "JOB DID NOT FINISH (opt %s/%s)" % (method, basisset))
-        return
-
-    # Set new SD tag for conformer's final energy
-    if not spe: taglabel = "QM Psi4 Final Opt. Energy (Har) %s/%s" % (method, basisset)
-    else: taglabel = "QM Psi4 Single Pt. Energy (Har) %s/%s" % (method, basisset)
-    oechem.OEAddSDData(Conf, taglabel, str(Props['finalEnergy']))
-
-    # Set new SD tag for wall-clock time
-    if not spe: taglabel = "QM Psi4 Opt. Runtime (sec) %s/%s" % (method, basisset)
-    else: taglabel = "QM Psi4 Single Pt. Runtime (sec) %s/%s" % (method, basisset)
-    oechem.OEAddSDData(Conf, taglabel, str(Props['time']))
-
-    if spe: return # stop here if SPE
-
-    # Set new SD tag for original conformer number
-    # !! Opt2 files should ALREADY have this !! Opt2 index is NOT orig index!
-    taglabel = "Original omega conformer number"
-    if not oechem.OEHasSDData(Conf, taglabel): # only add tag if not existing
-        oechem.OEAddSDData(Conf, taglabel, str(Conf.GetIdx()+1))
-
-    # Set new SD tag for numSteps of geom. opt.
-    taglabel = "QM Psi4 Opt. Steps %s/%s" % (method, basisset)
-    oechem.OEAddSDData(Conf, taglabel, str(Props['numSteps']))
-
-    # Set new SD tag for conformer's initial energy
-    taglabel = "QM Psi4 Initial Opt. Energy (Har) %s/%s" % (method, basisset)
-    oechem.OEAddSDData(Conf, taglabel, str(Props['initEnergy']))
-
 
 ### ------------------- Script -------------------
 
@@ -190,7 +135,7 @@ def getPsiResults(origsdf, finsdf, spe=False, timefile=None, psiout=None):
         psiout = "output.dat"
 
     wdir, fname = os.path.split(origsdf)
-    os.chdir(wdir)
+    wdir = os.getcwd()
 
     # Read in .sdf file and distinguish each molecule's conformers
     ifs = oechem.oemolistream()
@@ -213,7 +158,10 @@ def getPsiResults(origsdf, finsdf, spe=False, timefile=None, psiout=None):
     for mol in molecules:
         print("===== %s =====" % (mol.GetTitle()))
         for j, conf in enumerate( mol.GetConfs()):
+
+            # GET DETAILS FOR SD TAGS
             props = {} # dictionary of data for this conformer 
+            props['package'] = "Psi4"
             # change into subdirectory ./mol/conf/
             subdir = os.path.join(wdir,"%s/%s" % (mol.GetTitle(), j+1))
             if not os.path.isdir(subdir):
@@ -228,16 +176,21 @@ def getPsiResults(origsdf, finsdf, spe=False, timefile=None, psiout=None):
                 pass
             # process output and get dictionary results
             props = ProcessOutput(psiout, props, spe)
-            # Set last coordinates from optimization
-            #    skip SetCoords if coords missing
+
+            # BRIEF ANALYSIS OF STRUCTURE, INTRA HBONDS
+            # Set last coordinates from optimization. skip if missing.
             if 'coords' in props and len(props['coords']) != 0 :
                 conf.SetCoords(oechem.OEFloatArray(props['coords']))
+            # _____________________
+
+            # SET DETAILS TO WRITE MOLECULE
             # Set SD tags for this molecule
-            SetOptSDTags(conf, props, spe)
+            pt.SetOptSDTags(conf, props, spe)
             # Write output file
             oechem.OEWriteConstMolecule(write_ofs, conf)
     ifs.close()
     write_ofs.close()
+    os.chdir(wdir)
     try:
         return props['method'], props['basis']
     except KeyError:
