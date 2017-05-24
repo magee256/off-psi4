@@ -78,8 +78,7 @@ def confs2psi(insdf, method, basis, spe=False, memory=None):
     memory: string - memory specification. Psi4 default is 256 Mb. E.g. "1.5 Gb"
 
     """
-    wdir, fname = os.path.split(insdf)
-    os.chdir(wdir)
+    wdir = os.getcwd()
     
     ### Read in .sdf file and distinguish each molecule's conformers
     ifs = oechem.oemolistream()

@@ -51,8 +51,7 @@ def confs2turb(insdf):
     insdf:  string - PATH+name of SDF file
 
     """
-    wdir, fname = os.path.split(insdf)
-    os.chdir(wdir)
+    homedir = os.getcwd()
     p = sp.call('module load turbomole/7.1/intel', shell=True)
     
     ### Read in .sdf file and distinguish each molecule's conformers
@@ -67,7 +66,7 @@ def confs2turb(insdf):
         print(mol.GetTitle(), mol.NumConfs())
         for i, conf in enumerate( mol.GetConfs()):
             # change into subdirectory to use x2t
-            subdir = os.path.join(wdir,"%s/%s" % (mol.GetTitle(), i+1))
+            subdir = os.path.join(homedir,"%s/%s" % (mol.GetTitle(), i+1))
             if not os.path.isdir(subdir):
                 os.makedirs(subdir)
             os.chdir(subdir)
@@ -82,10 +81,10 @@ def confs2turb(insdf):
             ofile.close()
             xfile.close()
 
-            # run x2t and go back to wdir
-            p=sp.Popen('x2t input.xyz > coords',shell=True)
+            # run x2t
+            p=sp.Popen('x2t input.xyz > coord',shell=True)
             p.wait()
-            os.chdir(wdir)
+            #os.chdir(wdir) # i don't think i need this?
             
     ifs.close()
 
@@ -94,6 +93,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='This script generates, for \
  each conformer, a Turbomole-style coord file as well as an options\
  file for use with autoDefine.py which automates define process of Turbomole.\
+ Options file contains title and charge of mol.\
  x2t is run for each coord file to generate Turbomole coordinates.')
 
     parser.add_argument('-i','--infile', help='Input file with mols and confs\

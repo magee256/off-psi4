@@ -58,7 +58,6 @@ def ResolveBadClashes(Mol, Cfile):
     boolean: True if completed successfully, False otherwise.
 
     """
-    wfile = open(Cfile,'a')
 
     # set general energy options along with the single-point specification
     spSzybki = oeszybki.OESzybkiOptions()
@@ -90,10 +89,11 @@ def ResolveBadClashes(Mol, Cfile):
             return False
         Etot = szResults.GetTotalEnergy()
         Evdw = szResults.GetEnergyTerm(oeszybki.OEPotentialTerms_MMFFVdW)
+        wfile = open(Cfile,'a')
         wfile.write( '%s resolved bad clash: initial vdW: %.4f ; '
                    'resolved EvdW: %.4f\n' % (tmpmol.GetTitle(),Evdwsp,Evdw) )
+        wfile.close()
         Mol.SetCoords( tmpmol.GetCoords() )
-    wfile.close()
     oechem.OESetSDData(Mol, oechem.OESDDataPair('MM Szybki Single Point Energy'\
 , "%.12f" % szResults.GetTotalEnergy()))
     return True
